@@ -1,80 +1,37 @@
 <?php
-// var_dump('coba');die;
-$allowed_hosts = [
-    'internship.bright.id'
-];
-// var_dump($_SERVER['HTTP_HOST']);die;
-if (isset($_SERVER['HTTP_HOST']) && !in_array($_SERVER['HTTP_HOST'], $allowed_hosts)) {
-    http_response_code(403);
-    die();
+if (PHP_SAPI == 'cli-server') {
+    // To help the built-in PHP dev server, check if the request was actually for
+    // something which should probably be served as a static file
+    $url  = parse_url($_SERVER['REQUEST_URI']);
+    $file = __DIR__ . $url['path'];
+    if (is_file($file)) {
+        return false;
+    }
 }
 
-if (isset($_SERVER['SERVER_NAME']) && !in_array($_SERVER['SERVER_NAME'], $allowed_hosts)) {
-    http_response_code(403);
-    die();
-}
-// Check PHP version.
-$minPhpVersion = '7.4'; // If you update this, don't forget to update `spark`.
-if (version_compare(PHP_VERSION, $minPhpVersion, '<')) {
-    $message = sprintf(
-        'Your PHP version must be %s or higher to run CodeIgniter. Current version: %s',
-        $minPhpVersion,
-        PHP_VERSION
-    );
+require __DIR__ . '/../vendor/autoload.php';
 
-    exit($message);
-}
+// require __DIR__ . '/../vendor/phpmailer/phpmailer/src/PHPMailer.php';
+// require __DIR__ . '/../vendor/phpmailer/phpmailer/src/SMTP.php';
 
-// Path to the front controller (this file)
-define('FCPATH', __DIR__ . DIRECTORY_SEPARATOR);
+$dotenv = Dotenv\Dotenv::createUnsafeImmutable('../');
+$dotenv->load();
 
-// Ensure the current directory is pointing to the front controller's directory
-chdir(FCPATH);
+// Instantiate the app
+$settings = require __DIR__ . '/../src/settings.php';
+$app = new \Slim\App($settings);
 
-/*
- *---------------------------------------------------------------
- * BOOTSTRAP THE APPLICATION
- *---------------------------------------------------------------
- * This process sets up the path constants, loads and registers
- * our autoloader, along with Composer's, loads our constants
- * and fires up an environment-specific bootstrapping.
- */
+// Set up dependencies
+$dependencies = require __DIR__ . '/../src/dependencies.php';
+//$dependencies($app);
 
-// Load our paths config file
-// This is the line that might need to be changed, depending on your folder structure.
-require FCPATH . '../app/Config/Paths.php';
-// ^^^ Change this line if you move your application folder
+// Register middleware
+$middleware = require __DIR__ . '/../src/middleware.php';
+// $middleware($app);
 
-$paths = new Config\Paths();
+// Register routes
+$routes = require __DIR__ . '/../src/routes.php';
+// $routes($app);
 
-// Location of the framework bootstrap file.
-require rtrim($paths->systemDirectory, '\\/ ') . DIRECTORY_SEPARATOR . 'bootstrap.php';
-
-// Load environment settings from .env files into $_SERVER and $_ENV
-require_once SYSTEMPATH . 'Config/DotEnv.php';
-(new CodeIgniter\Config\DotEnv(ROOTPATH))->load();
-
-/*
- * ---------------------------------------------------------------
- * GRAB OUR CODEIGNITER INSTANCE
- * ---------------------------------------------------------------
- *
- * The CodeIgniter class contains the core functionality to make
- * the application run, and does all of the dirty work to get
- * the pieces all working together.
- */
-
-$app = Config\Services::codeigniter();
-$app->initialize();
-$context = is_cli() ? 'php-cli' : 'web';
-$app->setContext($context);
-
-/*
- *---------------------------------------------------------------
- * LAUNCH THE APPLICATION
- *---------------------------------------------------------------
- * Now that everything is setup, it's time to actually fire
- * up the engines and make this app do its thang.
- */
-
+// Run app
 $app->run();
